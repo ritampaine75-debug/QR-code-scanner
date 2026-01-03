@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SmartScan Pro</title>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- QR Code & Barcode Libraries (Lightweight, No Frameworks) -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        /* ============================
+           CSS VARIABLES & THEMES
+           ============================ */
+        :root {
+            /* Default Light (Material) */
+            --primary: #6200ee;
+            --primary-dark: #3700b3;
+            --accent: #03dac6;
+            --bg-body: #f5f5f5;
+            --bg-card: #ffffff;
+            --text-main: #000000;
+            --text-sec: #757575;
+            --border: #e0e0e0;
+            --nav-bg: #ffffff;
+            --nav-active: #6200ee;
+            --nav-inactive: #757575;
+            --shadow: 0 2px 5px rgba(0,0,0,0.1);
+            --danger: #d32f2f;
+            --success: #388e3c;
+            --font-stack: 'Roboto', -apple-system, sans-serif;
+        }
+
+        [data-theme="dark"] {
+            /* Material Dark */
+            --primary: #bb86fc;
+            --primary-dark: #3700b3;
+            --accent: #03dac6;
+            --bg-body: #121212;
+            --bg-card: #1e1e1e;
+            --text-main: #ffffff;
+            --text-sec: #b0b0b0;
+            --border: #333333;
+            --nav-bg: #1e1e1e;
+            --nav-active: #bb86fc;
+            --nav-inactive: #b0b0b0;
+            --shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+
+        [data-theme="gradient"] {
+            /* Modern Gradient */
+            --primary: #4e54c8;
+            --primary-dark: #8f94fb;
+            --accent: #ff00cc;
+            --bg-body: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+            --bg-card: rgba(255, 255, 255, 0.9);
+            --text-main: #333;
+            --text-sec: #666;
+            --border: #ddd;
+            --nav-bg: #fff;
+            --nav-active: #4e54c8;
+            --nav-inactive: #aaa;
+        }
+
+        [data-theme="amoled"] {
+            /* Premium AMOLED Black */
+            --primary: #ff9800;
+            --primary-dark: #f57c00;
+            --accent: #00e676;
+            --bg-body: #000000;
+            --bg-card: #000000;
+            --text-main: #ffffff;
+            --text-sec: #888888;
+            --border: #222222;
+            --nav-bg: #000000;
+            --nav-active: #ff9800;
+            --nav-inactive: #555555;
+            --shadow: 0 0 0 1px #333;
+        }
+
+        /* ============================
+           GLOBAL RESET & LAYOUT
+           ============================ */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-stack);
+            background: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* ============================
+           NAVIGATION (TOP & BOTTOM)
+           ============================ */
+        header {
+            background: var(--bg-card);
+            padding: 15px 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            height: 60px;
+        }
+        header h1 { margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+        
+        main {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+            padding-bottom: 70px; /* Space for bottom nav */
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: 60px;
+            background: var(--nav-bg);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--nav-inactive);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 25%;
+            height: 100%;
+        }
+
+        .nav-item i { font-size: 1.4rem; margin-bottom: 4px; transition: color 0.3s; }
+        .nav-item.active { color: var(--nav-active); font-weight: 600; }
+        .nav-item:active { transform: scale(0.9); }
+
+        /* ============================
+           PAGES / VIEWS
+           ============================ */
+        .view-section { display: none; padding: 20px; animation: fadeIn 0.3s ease; }
+        .view-section.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ============================
+           SCANNER VIEW
+           ============================ */
+        #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; position: relative; }
+        #reader video { object-fit: cover; border-radius: 12px; }
+        
+        .scan-overlay-text {
+            text-align: center;
+            margin-top: 15px;
+            color: var(--text-sec);
+            font-size: 0.9rem;
+        }
+
+        /* ============================
+           HISTORY VIEW
+           ============================ */
+        .history-controls { display: flex; gap: 10px; margin-bottom: 15px; }
+        .search-bar {
+            flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--bg-card); color: var(--text-main); outline: none;
+        }
+        .btn-icon { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); padding: 10px; border-radius: 8px; cursor: pointer; }
+
+        .history-list { list-style: none; padding: 0; margin: 0; }
+        .history-item {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background 0.2s;
+        }
+        .history-item:first-child { border-top-left-radius: 12px; border-top-right-radius: 12px; }
+        .history-item:last-child { border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; border-bottom: none; }
+        
+        .h-icon { width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center; margin-right: 15px; color: var(--primary); font-size: 1.2rem; }
+        .h-content { flex: 1; overflow: hidden; }
+        .h-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .h-meta { font-size: 0.75rem; color: var(--text-sec); display: flex; gap: 10px; }
+        .h-actions { margin-left: 10px; }
+        .h-btn-del { color: var(--text-sec); background: none; border: none; font-size: 1rem; padding: 5px; }
+
+        /* ============================
+           GENERATE VIEW
+           ============================ */
+        .gen-type-select {
+            display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 15px;
+            scrollbar-width: none;
+        }
+        .chip {
+            padding: 8px 16px; border-radius: 20px; background: var(--bg-card); border: 1px solid var(--border);
+            white-space: nowrap; font-size: 0.85rem; color: var(--text-sec); transition: all 0.2s;
+        }
+        .chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        .input-group { margin-bottom: 15px; }
+        .form-control {
+            width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border);
+            background: var(--bg-card); color: var(--text-main); font-family: inherit; font-size: 1rem;
+        }
+        
+        .qr-output-container {
+            display: none;
+            flex-direction: column; align-items: center; margin-top: 20px;
+            background: #fff; padding: 20px; border-radius: 12px;
+            box-shadow: var(--shadow);
+            width: fit-content;
+            margin-left: auto; margin-right: auto;
+        }
+        .qr-actions { margin-top: 15px; display: flex; gap: 10px; }
+
+        /* ============================
+           SETTINGS VIEW
+           ============================ */
+        .settings-card { background: var(--bg-card); border-radius: 12px; overflow: hidden; margin-bottom: 20px; border: 1px solid var(--border); }
+        .setting-row {
+            padding: 15px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-label { font-size: 1rem; font-weight: 500; }
+        
+        /* Toggle Switch */
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        .theme-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 15px; }
+        .theme-btn {
+            padding: 15px; border-radius: 8px; border: 2px solid var(--border); cursor: pointer;
+            text-align: center; font-weight: 600; font-size: 0.9rem;
+        }
+        .theme-btn.active { border-color: var(--primary); color: var(--primary); background: rgba(0,0,0,0.03); }
+
+        /* ============================
+           MODALS / DIALOGS
+           ============================ */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 2000;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .modal-overlay.open { opacity: 1; pointer-events: all; }
+        
+        .modal-card {
+            background: var(--bg-card); width: 90%; max-width: 400px;
+            border-radius: 16px; padding: 20px; position: relative;
+            transform: translateY(20px); transition: transform 0.3s;
+            max-height: 90vh; overflow-y: auto;
+        }
+        .modal-overlay.open .modal-card { transform: translateY(0); }
+
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .modal-title { font-size: 1.2rem; font-weight: 700; color: var(--text-main); }
+        .modal-close { background: none; border: none; color: var(--text-sec); font-size: 1.5rem; cursor: pointer; }
+
+        .result-content { word-break: break-all; margin-bottom: 20px; font-family: monospace; background: rgba(0,0,0,0.05); padding: 10px; border-radius: 8px; }
+        
+        .btn {
+            padding: 12px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; margin-bottom: 10px; font-size: 1rem;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-warning { background: #ff9800; color: black; }
+
+        /* Security Warning Header */
+        .security-header { background: #ffebee; color: #c62828; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 10px; align-items: center; font-size: 0.9rem; }
+
+        /* Offline Banner */
+        .offline-banner {
+            background: var(--danger); color: white; text-align: center; padding: 5px; font-size: 0.8rem;
+            display: none; position: absolute; top: 60px; width: 100%; z-index: 90;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <h1 id="app-title"><i class="fa-solid fa-qrcode"></i> SmartScan</h1>
+        <div id="connection-status" style="font-size: 0.8rem; color: var(--success);"><i class="fa-solid fa-wifi"></i> Online</div>
+    </header>
+
+    <div id="offline-msg" class="offline-banner">No Internet Connection</div>
+
+    <!-- Main Content Area -->
+    <main>
+        
+        <!-- 1. SCANNER VIEW -->
+        <section id="view-scan" class="view-section active">
+            <div id="reader"></div>
+            <p class="scan-overlay-text">Point camera at a code to scan</p>
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="startScanner()" class="btn btn-outline" style="width: auto;"><i class="fa-solid fa-camera"></i> Reactivate Camera</button>
+            </div>
+        </section>
+
+        <!-- 2. HISTORY VIEW -->
+        <section id="view-history" class="view-section">
+            <div class="history-controls">
+                <input type="text" class="search-bar" placeholder="Search history..." id="history-search" onkeyup="renderHistory()">
+                <button class="btn-icon" onclick="clearHistory()" title="Clear All"><i class="fa-solid fa-trash"></i></button>
+            </div>
+            <ul class="history-list" id="history-container">
+                <!-- Items injected via JS -->
+            </ul>
+        </section>
+
+        <!-- 3. GENERATE VIEW -->
+        <section id="view-generate" class="view-section">
+            <div class="gen-type-select">
+                <div class="chip active" onclick="setGenType('text', this)">Text</div>
+                <div class="chip" onclick="setGenType('url', this)">URL</div>
+                <div class="chip" onclick="setGenType('wifi', this)">Wi-Fi</div>
+                <div class="chip" onclick="setGenType('email', this)">Email</div>
+            </div>
+
+            <!-- Dynamic Forms -->
+            <div id="gen-form-container">
+                <!-- Text/URL Form -->
+                <div class="input-group">
+                    <input type="text" id="gen-input-data" class="form-control" placeholder="Enter text or URL here...">
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="generateQR()">Generate Code</button>
+
+            <div class="qr-output-container" id="qr-result-box">
+                <div id="qrcode"></div>
+                <div class="qr-actions">
+                    <button class="btn btn-outline" onclick="downloadQR()">Save</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. SETTINGS VIEW -->
+        <section id="view-settings" class="view-section">
+            <h3>Appearance</h3>
+            <div class="settings-card">
+                <div class="theme-grid">
+                    <div class="theme-btn active" onclick="setTheme('light', this)">Material Light</div>
+                    <div class="theme-btn" onclick="setTheme('dark', this)">Material Dark</div>
+                    <div class="theme-btn" onclick="setTheme('gradient', this)">Gradient</div>
+                    <div class="theme-btn" onclick="setTheme('amoled', this)">AMOLED Black</div>
+                </div>
+            </div>
+
+            <h3>Preferences</h3>
+            <div class="settings-card">
+                <div class="setting-row">
+                    <span class="setting-label">Vibrate on Scan</span>
+                    <label class="switch">
+                        <input type="checkbox" id="setting-vibrate" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">Sound Effect</span>
+                    <label class="switch">
+                        <input type="checkbox" id="setting-sound" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div style="text-align: center; color: var(--text-sec); margin-top: 20px; font-size: 0.8rem;">
+                <p>SmartScan Pro v1.0.0</p>
+                <p>Offline Capable Web App</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('scan')">
+            <i class="fa-solid fa-expand"></i>
+            <span>Scan</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('history')">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span>History</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('generate')">
+            <i class="fa-solid fa-qrcode"></i>
+            <span>Create</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('settings')">
+            <i class="fa-solid fa-gear"></i>
+            <span>Settings</span>
+        </div>
+    </nav>
+
+    <!-- RESULT MODAL -->
+    <div class="modal-overlay" id="result-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <span class="modal-title" id="res-title">Scan Result</span>
+                <button class="modal-close" onclick="closeModal('result-modal')">&times;</button>
+            </div>
+
+            <div id="security-warning" class="security-header" style="display:none;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span><b>Warning:</b> External Link. Verify before opening.</span>
+            </div>
+
+            <div class="result-content" id="res-text"></div>
+            
+            <div id="product-fields" style="display:none; margin-bottom: 15px;">
+                <input type="text" id="prod-name" class="form-control" placeholder="Product Name" style="margin-bottom:5px">
+                <input type="number" id="prod-price" class="form-control" placeholder="Price" style="margin-bottom:5px">
+                <textarea id="prod-note" class="form-control" placeholder="Notes"></textarea>
+                <button class="btn btn-outline" style="margin-top:10px" onclick="saveProductDetails()">Save Details</button>
+            </div>
+
+            <div id="action-buttons">
+                <!-- Dynamic Buttons injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ============================
+           APP STATE & CONFIG
+           ============================ */
+        const App = {
+            currentTab: 'scan',
+            history: JSON.parse(localStorage.getItem('scan_history')) || [],
+            settings: {
+                theme: localStorage.getItem('app_theme') || 'light',
+                vibrate: JSON.parse(localStorage.getItem('set_vibrate')) ?? true,
+                sound: JSON.parse(localStorage.getItem('set_sound')) ?? true
+            },
+            scannerObj: null,
+            lastScanned: null,
+            isOffline: !navigator.onLine
+        };
+
+        /* ============================
+           INIT LOGIC
+           ============================ */
+        document.addEventListener('DOMContentLoaded', () => {
+            applyTheme(App.settings.theme);
+            initSettingsUI();
+            startScanner();
+            renderHistory();
+            
+            // Online/Offline Listeners
+            window.addEventListener('online', () => updateOnlineStatus(true));
+            window.addEventListener('offline', () => updateOnlineStatus(false));
+            updateOnlineStatus(navigator.onLine);
+        });
+
+        /* ============================
+           THEMING SYSTEM
+           ============================ */
+        function setTheme(themeName, btnElement) {
+            App.settings.theme = themeName;
+            localStorage.setItem('app_theme', themeName);
+            applyTheme(themeName);
+            
+            // Update UI buttons
+            document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+            if(btnElement) btnElement.classList.add('active');
+        }
+
+        function applyTheme(name) {
+            document.documentElement.setAttribute('data-theme', name);
+            // Sync Settings UI
+            document.querySelectorAll('.theme-btn').forEach(b => {
+                if(b.innerText.toLowerCase().includes(name === 'amoled' ? 'amoled' : name)) {
+                    b.classList.add('active');
+                } else {
+                    b.classList.remove('active');
+                }
+            });
+        }
+
+        /* ============================
+           NAVIGATION & UI
+           ============================ */
+        function switchTab(tabId) {
+            // Update Nav UI
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const navIndex = ['scan', 'history', 'generate', 'settings'].indexOf(tabId);
+            document.querySelectorAll('.nav-item')[navIndex].classList.add('active');
+
+            // Switch View
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(`view-${tabId}`).classList.add('active');
+            
+            App.currentTab = tabId;
+
+            // Scanner Logic: Only run on scan tab
+            if(tabId === 'scan') {
+                startScanner();
+            } else {
+                stopScanner();
+            }
+
+            if(tabId === 'history') renderHistory();
+        }
+
+        function updateOnlineStatus(isOnline) {
+            App.isOffline = !isOnline;
+            const statusDiv = document.getElementById('connection-status');
+            const banner = document.getElementById('offline-msg');
+            
+            if(isOnline) {
+                statusDiv.innerHTML = '<i class="fa-solid fa-wifi"></i> Online';
+                statusDiv.style.color = 'var(--success)';
+                banner.style.display = 'none';
+            } else {
+                statusDiv.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Offline';
+                statusDiv.style.color = 'var(--text-sec)';
+                banner.style.display = 'block';
+            }
+        }
+
+        function initSettingsUI() {
+            document.getElementById('setting-vibrate').checked = App.settings.vibrate;
+            document.getElementById('setting-sound').checked = App.settings.sound;
+
+            document.getElementById('setting-vibrate').addEventListener('change', (e) => {
+                App.settings.vibrate = e.target.checked;
+                localStorage.setItem('set_vibrate', e.target.checked);
+            });
+            document.getElementById('setting-sound').addEventListener('change', (e) => {
+                App.settings.sound = e.target.checked;
+                localStorage.setItem('set_sound', e.target.checked);
+            });
+        }
+
+        /* ============================
+           SCANNER LOGIC (Html5Qrcode)
+           ============================ */
+        function startScanner() {
+            if(App.scannerObj) return; // Already running
+
+            const html5QrCode = new Html5Qrcode("reader");
+            App.scannerObj = html5QrCode;
+
+            const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
+            
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                onScanSuccess, 
+                onScanFailure
+            ).catch(err => {
+                console.error("Camera Error", err);
+                document.querySelector('.scan-overlay-text').innerText = "Camera access denied or error.";
+            });
+        }
+
+        function stopScanner() {
+            if(App.scannerObj) {
+                App.scannerObj.stop().then(() => {
+                    App.scannerObj.clear();
+                    App.scannerObj = null;
+                }).catch(err => console.error("Stop failed", err));
+            }
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            // Debounce
+            if(App.lastScanned === decodedText) return; 
+            App.lastScanned = decodedText;
+            
+            // Feedback
+            if(App.settings.vibrate) navigator.vibrate(200);
+            if(App.settings.sound) playBeep();
+
+            // Pause scanner
+            stopScanner();
+
+            // Handle Data
+            handleScanResult(decodedText, decodedResult);
+            
+            // Reset debounce after delay
+            setTimeout(() => { App.lastScanned = null; }, 3000);
+        }
+
+        function onScanFailure(error) {
+            // handle scanning failure, usually better to ignore and keep scanning.
+            // console.warn(`Code scan error = ${error}`);
+        }
+
+        function playBeep() {
+            // Simple beep using Web Audio API
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = "sine";
+            osc.frequency.value = 1200;
+            gain.gain.value = 0.1;
+            osc.start();
+            setTimeout(() => osc.stop(), 150);
+        }
+
+        /* ============================
+           DATA HANDLING & SMART DETECTION
+           ============================ */
+        function handleScanResult(text, resultObj) {
+            let type = 'text';
+            let category = 'TEXT';
+            const lowerText = text.toLowerCase();
+            const format = resultObj?.result?.format?.formatName || 'QR_CODE';
+
+            // Determine content type
+            if (/^https?:\/\//.test(lowerText)) { type = 'url'; category = 'WEBSITE'; }
+            else if (/^wifi:/.test(lowerText)) { type = 'wifi'; category = 'WI-FI'; }
+            else if (/^mailto:/.test(lowerText)) { type = 'email'; category = 'EMAIL'; }
+            else if (/^tel:/.test(lowerText) || /^\+?[0-9]{7,15}$/.test(text)) { type = 'phone'; category = 'PHONE'; }
+            else if (format.includes('EAN') || format.includes('UPC') || format.includes('ISBN')) { type = 'product'; category = 'PRODUCT'; }
+            
+            // Save to History
+            addToHistory({
+                id: Date.now(),
+                text: text,
+                type: type,
+                category: category,
+                date: new Date().toLocaleString()
+            });
+
+            // Show UI
+            showResultModal(text, type, category);
+        }
+
+        function showResultModal(text, type, category) {
+            const modal = document.getElementById('result-modal');
+            const title = document.getElementById('res-title');
+            const content = document.getElementById('res-text');
+            const actions = document.getElementById('action-buttons');
+            const warning = document.getElementById('security-warning');
+            const productFields = document.getElementById('product-fields');
+
+            // Reset
+            warning.style.display = 'none';
+            productFields.style.display = 'none';
+            actions.innerHTML = '';
+            
+            title.innerHTML = `<i class="fa-solid fa-${getIcon(type)}"></i> ${category}`;
+            content.innerText = text;
+
+            // Logic based on type
+            let htmlBtns = '';
+
+            if (type === 'url') {
+                warning.style.display = 'flex';
+                htmlBtns += `<button class="btn btn-primary" onclick="window.open('${text}', '_blank')"><i class="fa-solid fa-external-link-alt"></i> Open Link</button>`;
+            } 
+            else if (type === 'phone') {
+                let num = text.replace('tel:', '');
+                htmlBtns += `<button class="btn btn-primary" onclick="window.location.href='tel:${num}'"><i class="fa-solid fa-phone"></i> Call</button>`;
+            }
+            else if (type === 'email') {
+                htmlBtns += `<button class="btn btn-primary" onclick="window.location.href='mailto:${text.replace('mailto:', '')}'"><i class="fa-solid fa-envelope"></i> Send Email</button>`;
+            }
+            else if (type === 'product') {
+                productFields.style.display = 'block';
+                // Try load local data
+                const savedProd = getProductData(text);
+                document.getElementById('prod-name').value = savedProd.name || '';
+                document.getElementById('prod-price').value = savedProd.price || '';
+                document.getElementById('prod-note').value = savedProd.note || '';
+                // Attach save handler logic to the button is done in HTML
+                htmlBtns += `<button class="btn btn-primary" onclick="window.open('https://www.google.com/search?q=${text}', '_blank')"><i class="fa-brands fa-google"></i> Search Product</button>`;
+            }
+
+            // Common Buttons
+            htmlBtns += `<button class="btn btn-outline" onclick="copyToClipboard('${text}')"><i class="fa-solid fa-copy"></i> Copy Text</button>`;
+            htmlBtns += `<button class="btn btn-warning" onclick="switchTab('scan'); closeModal('result-modal')">Scan Next</button>`;
+
+            actions.innerHTML = htmlBtns;
+            modal.classList.add('open');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('open');
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard'));
+        }
+
+        function getIcon(type) {
+            const map = {
+                'url': 'link', 'wifi': 'wifi', 'email': 'envelope', 'phone': 'phone',
+                'product': 'barcode', 'text': 'align-left'
+            };
+            return map[type] || 'qrcode';
+        }
+
+        /* ============================
+           HISTORY MANAGER
+           ============================ */
+        function addToHistory(item) {
+            App.history.unshift(item);
+            if(App.history.length > 50) App.history.pop(); // Limit 50
+            localStorage.setItem('scan_history', JSON.stringify(App.history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('history-container');
+            const search = document.getElementById('history-search').value.toLowerCase();
+            
+            list.innerHTML = '';
+
+            const filtered = App.history.filter(h => h.text.toLowerCase().includes(search) || h.category.toLowerCase().includes(search));
+
+            if(filtered.length === 0) {
+                list.innerHTML = '<li style="padding:20px; text-align:center; color:var(--text-sec)">No history found</li>';
+                return;
+            }
+
+            filtered.forEach((h, index) => {
+                const li = document.createElement('li');
+                li.className = 'history-item';
+                li.innerHTML = `
+                    <div class="h-icon"><i class="fa-solid fa-${getIcon(h.type)}"></i></div>
+                    <div class="h-content" onclick="showResultModal('${h.text.replace(/'/g, "\\'")}', '${h.type}', '${h.category}')">
+                        <div class="h-title">${h.category}</div>
+                        <div class="h-meta">
+                            <span>${h.date}</span>
+                            <span>${h.text.substring(0, 20)}...</span>
+                        </div>
+                    </div>
+                    <div class="h-actions">
+                        <button class="h-btn-del" onclick="deleteHistoryItem(${h.id})"><i class="fa-solid fa-times"></i></button>
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        function deleteHistoryItem(id) {
+            App.history = App.history.filter(h => h.id !== id);
+            localStorage.setItem('scan_history', JSON.stringify(App.history));
+            renderHistory();
+        }
+
+        function clearHistory() {
+            if(confirm('Clear all scan history?')) {
+                App.history = [];
+                localStorage.setItem('scan_history', JSON.stringify([]));
+                renderHistory();
+            }
+        }
+
+        /* ============================
+           PRODUCT DATA (LOCAL)
+           ============================ */
+        function getProductData(code) {
+            const data = localStorage.getItem('prod_' + code);
+            return data ? JSON.parse(data) : {};
+        }
+
+        function saveProductDetails() {
+            const code = document.getElementById('res-text').innerText;
+            const data = {
+                name: document.getElementById('prod-name').value,
+                price: document.getElementById('prod-price').value,
+                note: document.getElementById('prod-note').value
+            };
+            localStorage.setItem('prod_' + code, JSON.stringify(data));
+            alert('Product details saved locally!');
+        }
+
+        /* ============================
+           QR GENERATOR
+           ============================ */
+        let currentGenType = 'text';
+
+        function setGenType(type, el) {
+            currentGenType = type;
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            
+            const input = document.getElementById('gen-input-data');
+            if(type === 'email') input.placeholder = "Enter Email Address";
+            else if(type === 'url') input.placeholder = "https://example.com";
+            else if(type === 'wifi') input.placeholder = "SSID;PASSWORD (Format)";
+            else input.placeholder = "Enter text content";
+        }
+
+        function generateQR() {
+            const text = document.getElementById('gen-input-data').value;
+            if(!text) return alert('Please enter data');
+
+            const container = document.getElementById('qrcode');
+            container.innerHTML = '';
+            document.getElementById('qr-result-box').style.display = 'flex';
+
+            // Construct data based on type (simple implementation)
+            let finalData = text;
+            if(currentGenType === 'wifi' && !text.startsWith('WIFI:')) {
+                const parts = text.split(';');
+                if(parts.length >= 2) finalData = `WIFI:S:${parts[0]};T:WPA;P:${parts[1]};;`;
+            } else if (currentGenType === 'email' && !text.startsWith('mailto:')) {
+                finalData = `mailto:${text}`;
+            }
+
+            new QRCode(container, {
+                text: finalData,
+                width: 200,
+                height: 200,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
+        function downloadQR() {
+            const img = document.querySelector('#qrcode img');
+            if(img) {
+                const link = document.createElement('a');
+                link.download = 'qrcode.png';
+                link.href = img.src;
+                link.click();
+            }
+        }
+
+    </script>
+</body>
+</html>
